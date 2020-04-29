@@ -1,0 +1,30 @@
+'''
+python main.py 
+    -m "models/ssd_mobilenet_v2_coco_2018_03_29/frozen_inference_graph.xml" 
+    -i "resources/Pedestrian_Detect_2_1_1.mp4" 
+    -pt 0.3
+'''
+
+Log: Person detected at 6.20 seconds.
+Log: Person left at 19.60 seconds.
+Log: Average time people on screen: 13.40
+
+Log: Person detected at 23.00 seconds.
+Log: Person left at 44.70 seconds.
+Log: Average time people on screen: 17.55
+
+Log: Person detected at 50.30 seconds.
+Log: Person left at 69.60 seconds.
+Log: Average time people on screen: 18.13
+
+Log: Person detected at 74.60 seconds.
+Log: Person left at 86.60 seconds.
+Log: Average time people on screen: 16.60
+
+Log: Person detected at 92.60 seconds.
+Log: Person left at 119.60 seconds.
+Log: Average time people on screen: 18.68
+
+Log: Person detected at 123.70 seconds.
+Log: Person left at 135.90 seconds.
+Log: Average time people on screen: 17.60
