@@ -44,7 +44,7 @@ class Network:
         self.infer_request = None
         
         
-    def load_model(self, model, device="CPU", cpu_extension=None):
+    def load_model(self, model, device="CPU"):
         
         model_xml = model + '/frozen_inference_graph.xml'
         
@@ -52,9 +52,6 @@ class Network:
         self.plugin = IECore()
         model_bin = os.path.splitext(model_xml)[0] + ".bin"
         self.network = IENetwork(model=model_xml, weights=model_bin)
-        
-        # Add any necessary extensions 
-        self.plugin.add_extension(cpu_extension, device)
         
         # Check for supported layers 
         supported_layers = self.plugin.query_network(network=self.network,device_name="CPU")
