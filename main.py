@@ -86,13 +86,19 @@ def build_argparser():
                         "(0.5 by default)")
     parser.add_argument("-tf", "--use_tensorflow", type=bool, default=False,
                         help="Flag indicating whether to use tensorflow or not. (Using OpenVINO by default)")
+    parser.add_argument("-s", "--publish_stats", type=bool, default=False,
+                        help="Flag indicating whether to publish statistics to the MQTT client")
+    parser.add_argument("-v", "--stream_video", type=bool, default=False,
+                        help="Flag indicating whether to stream the video to the UI server or just generate the ouput .mp4")
     return parser
 
 
-def connect_mqtt():
+def connect_mqtt(publish_stats):
     ### TODO: Connect to the MQTT client ###
-    client = mqtt.Client()
-    client.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE_INTERVAL)
+    client = None
+    if publish_stats:
+        client = mqtt.Client()
+        client.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE_INTERVAL)
 
     return client
 
@@ -219,15 +225,17 @@ def run_tf_inference(image, graph):
     return result
     
     
-def infer_on_stream(args, client):
+def infer_on_stream(args):
     """
     Initialize the inference network, stream video to network,
     and output stats and video.
 
     :param args: Command line arguments parsed by `build_argparser()`
-    :param client: MQTT client
     :return: None
     """
+    
+    # Connect to the MQTT server
+    client = connect_mqtt(args.publish_stats)
     
     if args.use_tensorflow:
         
@@ -323,21 +331,23 @@ def infer_on_stream(args, client):
         ### TODO: Extract any desired stats from the results ###
         n_in_frame, n_persons_entered, n_persons_left, timestamp_person_entered, time_person_on_screen, last_detection_timestamp, flag_alert_when_person_leaves = get_statistics(result, n_in_frame, n_persons_entered, n_persons_left, timestamp_person_entered, last_detection_timestamp, flag_alert_when_person_leaves, video_timestamp, args.prob_threshold)
         
-        ### TODO: Calculate and send relevant information on ###
-        ### Topic "person": keys of "count" and "total" ###
-        ### Topic "person/duration": key of "duration" ###
-        client.publish("person", json.dumps({"count": n_in_frame, "total": n_persons_entered}))
-        # if another person left the scene
-        if time_person_on_screen:
-            # calculate the new average duration on scene
-            time_people_on_screen += time_person_on_screen
-            time_people_on_screen_avg = time_people_on_screen / n_persons_left
-            client.publish("person/duration", json.dumps({"duration": time_people_on_screen_avg}))
-            print("Log: Average time people on screen: {:.2f}".format(time_people_on_screen_avg))
-        
-        ### TODO: Send the frame to the FFMPEG server ###
-        sys.stdout.buffer.write(out_frame)
-        sys.stdout.flush()
+        if args.publish_stats:
+            ### TODO: Calculate and send relevant information on ###
+            ### Topic "person": keys of "count" and "total" ###
+            ### Topic "person/duration": key of "duration" ###
+            client.publish("person", json.dumps({"count": n_in_frame, "total": n_persons_entered}))
+            # if another person left the scene
+            if time_person_on_screen:
+                # calculate the new average duration on scene
+                time_people_on_screen += time_person_on_screen
+                time_people_on_screen_avg = time_people_on_screen / n_persons_left
+                client.publish("person/duration", json.dumps({"duration": time_people_on_screen_avg}))
+                print("Log: Average time people on screen: {:.2f}".format(time_people_on_screen_avg))
+            
+        if args.stream_video:
+            ### TODO: Send the frame to the FFMPEG server ###
+            sys.stdout.buffer.write(out_frame)
+            sys.stdout.flush()
         
         ### TODO: Write out the frame, depending on image or video ###
         if image_flag:
@@ -354,7 +364,8 @@ def infer_on_stream(args, client):
         out.release()
     cap.release()
     cv2.destroyAllWindows()
-    client.disconnect()
+    if args.publish_stats:
+        client.disconnect()
 
 
 def main():
@@ -365,10 +376,8 @@ def main():
     """
     # Grab command line args
     args = build_argparser().parse_args()
-    # Connect to the MQTT server
-    client = connect_mqtt()
     # Perform inference on the input stream
-    infer_on_stream(args, client)
+    infer_on_stream(args)
 
 
 if __name__ == '__main__':
